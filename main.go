@@ -6,8 +6,20 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/gorilla/mux"
+
 	"github.com/lithammer/shortuuid/v3"
 )
+
+type App struct {
+	Router *mux.Router
+	Todo   Todo
+}
+
+type Todo struct {
+	mu    sync.Mutex
+	Tasks []Task
+}
 
 type Task struct {
 	Id          string `json:"id"`
@@ -16,40 +28,34 @@ type Task struct {
 	Status      string `json:"status" validate:"required"`
 }
 
-type TodoHandler struct {
-	mu    sync.Mutex
-	Tasks []Task
-}
-
 func main() {
-	http.Handle("/todo", new(TodoHandler))
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	a := App{}
+	a.Initialize()
+	a.Run(":8080")
 }
 
-func (todo *TodoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	todo.mu.Lock()
-	defer todo.mu.Unlock()
-
-	switch r.Method {
-	case "GET":
-		todo.getTaskHandler(w, r)
-		break
-	case "POST":
-		todo.postTaskHandler(w, r)
-		break
-	default:
-		json.NewEncoder(w).Encode(todo.Tasks)
-		break
-	}
-
+func (a *App) Initialize() {
+	a.Router = mux.NewRouter()
+	a.initializeRoutes()
 }
 
-func (todo *TodoHandler) getTaskHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(todo.Tasks)
+func (a *App) Run(addr string) {
+	log.Fatal(http.ListenAndServe(addr, a.Router))
 }
 
-func (todo *TodoHandler) postTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (a *App) initializeRoutes() {
+	a.Router.HandleFunc("/task", a.getTasks).Methods("GET")
+	a.Router.HandleFunc("/task", a.createTask).Methods("POST")
+	// a.Router.HandleFunc("/task/{id:[0-9]+}", a.getTask).Methods("GET")
+	// a.Router.HandleFunc("/task/{id:[0-9]+}", a.updateTask).Methods("PUT")
+	// a.Router.HandleFunc("/task/{id:[0-9]+}", a.deleteTask).Methods("DELETE")
+}
+
+func (app *App) getTasks(w http.ResponseWriter, r *http.Request) {
+	respondWithJSON(w, http.StatusOK, app.Todo.Tasks)
+}
+
+func (app *App) createTask(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var newTask Task
 	err := decoder.Decode(&newTask)
@@ -63,6 +69,12 @@ func (todo *TodoHandler) postTaskHandler(w http.ResponseWriter, r *http.Request)
 	// 	json.NewEncoder(err2).Encode(todo.Tasks)
 	// }
 
-	todo.Tasks = append(todo.Tasks, newTask)
-	json.NewEncoder(w).Encode(newTask)
+	app.Todo.Tasks = append(app.Todo.Tasks, newTask)
+	respondWithJSON(w, http.StatusCreated, newTask)
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(payload)
 }
