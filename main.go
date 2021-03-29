@@ -46,7 +46,7 @@ func (a *App) Run(addr string) {
 func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/task", a.getTasks).Methods("GET")
 	a.Router.HandleFunc("/task", a.createTask).Methods("POST")
-	// a.Router.HandleFunc("/task/{id:[0-9]+}", a.getTask).Methods("GET")
+	a.Router.HandleFunc("/task/{id}", a.getTask).Methods("GET")
 	// a.Router.HandleFunc("/task/{id:[0-9]+}", a.updateTask).Methods("PUT")
 	// a.Router.HandleFunc("/task/{id:[0-9]+}", a.deleteTask).Methods("DELETE")
 }
@@ -71,6 +71,17 @@ func (app *App) createTask(w http.ResponseWriter, r *http.Request) {
 
 	app.Todo.Tasks = append(app.Todo.Tasks, newTask)
 	respondWithJSON(w, http.StatusCreated, newTask)
+}
+
+func (app *App) getTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	for _, task := range app.Todo.Tasks {
+		if task.Id == vars["id"] {
+			respondWithJSON(w, http.StatusOK, task)
+			return
+		}
+	}
+	respondWithJSON(w, http.StatusNotFound, nil)
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
