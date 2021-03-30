@@ -47,8 +47,8 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/task", a.getTasks).Methods("GET")
 	a.Router.HandleFunc("/task", a.createTask).Methods("POST")
 	a.Router.HandleFunc("/task/{id}", a.getTask).Methods("GET")
-	// a.Router.HandleFunc("/task/{id:[0-9]+}", a.updateTask).Methods("PUT")
-	// a.Router.HandleFunc("/task/{id:[0-9]+}", a.deleteTask).Methods("DELETE")
+	a.Router.HandleFunc("/task/{id}", a.updateTask).Methods("PUT")
+	a.Router.HandleFunc("/task/{id}", a.deleteTask).Methods("DELETE")
 }
 
 func (app *App) getTasks(w http.ResponseWriter, r *http.Request) {
@@ -81,6 +81,44 @@ func (app *App) getTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	respondWithJSON(w, http.StatusNotFound, nil)
+}
+
+func (app *App) updateTask(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var updatedTask Task
+	err := decoder.Decode(&updatedTask)
+	if err != nil {
+		panic(err)
+	}
+
+	vars := mux.Vars(r)
+	for i, task := range app.Todo.Tasks {
+		if task.Id == vars["id"] {
+			app.Todo.Tasks[i].Name = updatedTask.Name
+			app.Todo.Tasks[i].Description = updatedTask.Description
+			app.Todo.Tasks[i].Status = updatedTask.Status
+			respondWithJSON(w, http.StatusOK, app.Todo.Tasks[i])
+
+			return
+		}
+	}
+
+	respondWithJSON(w, http.StatusNotFound, nil)
+}
+
+func (app *App) deleteTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	for i, task := range app.Todo.Tasks {
+		if task.Id == vars["id"] {
+			app.Todo.Tasks[i] = app.Todo.Tasks[len(app.Todo.Tasks)-1]
+			app.Todo.Tasks = app.Todo.Tasks[:len(app.Todo.Tasks)-1]
+			respondWithJSON(w, http.StatusNoContent, nil)
+			return
+		}
+	}
+
 	respondWithJSON(w, http.StatusNotFound, nil)
 }
 
