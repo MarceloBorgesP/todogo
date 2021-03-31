@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
-
 	"github.com/lithammer/shortuuid/v3"
 )
 
@@ -23,9 +23,9 @@ type Todo struct {
 
 type Task struct {
 	Id          string `json:"id"`
-	Name        string `json:"name" validate:"required"`
-	Description string `json:"desc" validate:"required"`
-	Status      string `json:"status" validate:"required"`
+	Name        string `json:"name" validate:"required,max=100"`
+	Description string `json:"desc" validate:"max=1000"`
+	Status      string `json:"status"`
 }
 
 func main() {
@@ -57,17 +57,17 @@ func (app *App) getTasks(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) createTask(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var newTask Task
+	newTask := Task{}
 	err := decoder.Decode(&newTask)
 	if err != nil {
 		panic(err)
 	}
 	newTask.Id = shortuuid.New()
 
-	// err2 := validate.Validate(newTask)
-	// if err2 != nil {
-	// 	json.NewEncoder(err2).Encode(todo.Tasks)
-	// }
+	if errMessage := isValidInput(newTask); errMessage != nil {
+		respondWithError(w, errMessage)
+		return
+	}
 
 	app.Todo.Tasks = append(app.Todo.Tasks, newTask)
 	respondWithJSON(w, http.StatusCreated, newTask)
@@ -91,6 +91,11 @@ func (app *App) updateTask(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&updatedTask)
 	if err != nil {
 		panic(err)
+	}
+
+	if errMessage := isValidInput(updatedTask); errMessage != nil {
+		respondWithError(w, errMessage)
+		return
 	}
 
 	vars := mux.Vars(r)
@@ -126,4 +131,21 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(payload)
+}
+
+func respondWithError(w http.ResponseWriter, errMessage map[string]string) {
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	respondWithJSON(w, http.StatusBadRequest, errMessage)
+}
+
+func isValidInput(task Task) map[string]string {
+	validate := validator.New()
+	err := validate.Struct(task)
+	if err != nil {
+		validationErrors := err.(validator.ValidationErrors)
+		return map[string]string{"error": validationErrors.Error()}
+	}
+
+	return nil
 }
