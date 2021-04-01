@@ -28,6 +28,17 @@ type Task struct {
 	Status      string `json:"status"`
 }
 
+type Status int
+
+const (
+	TODO = iota
+	DONE
+)
+
+func (s Status) String() string {
+	return [...]string{"TODO", "DONE"}[s]
+}
+
 func main() {
 	a := App{}
 	a.Initialize()
@@ -49,6 +60,7 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/task/{id}", a.getTask).Methods("GET")
 	a.Router.HandleFunc("/task/{id}", a.updateTask).Methods("PUT")
 	a.Router.HandleFunc("/task/{id}", a.deleteTask).Methods("DELETE")
+	a.Router.HandleFunc("/task/{id}/complete", a.completeTask).Methods("POST")
 }
 
 func (app *App) getTasks(w http.ResponseWriter, r *http.Request) {
@@ -63,9 +75,13 @@ func (app *App) createTask(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 	newTask.Id = shortuuid.New()
+	var status Status
+	status = TODO
+	newTask.Status = status.String()
 
 	if errMessage := isValidInput(newTask); errMessage != nil {
 		respondWithError(w, errMessage)
+
 		return
 	}
 
@@ -78,6 +94,7 @@ func (app *App) getTask(w http.ResponseWriter, r *http.Request) {
 	for _, task := range app.Todo.Tasks {
 		if task.Id == vars["id"] {
 			respondWithJSON(w, http.StatusOK, task)
+
 			return
 		}
 	}
@@ -95,6 +112,7 @@ func (app *App) updateTask(w http.ResponseWriter, r *http.Request) {
 
 	if errMessage := isValidInput(updatedTask); errMessage != nil {
 		respondWithError(w, errMessage)
+
 		return
 	}
 
@@ -120,6 +138,23 @@ func (app *App) deleteTask(w http.ResponseWriter, r *http.Request) {
 			app.Todo.Tasks[i] = app.Todo.Tasks[len(app.Todo.Tasks)-1]
 			app.Todo.Tasks = app.Todo.Tasks[:len(app.Todo.Tasks)-1]
 			respondWithJSON(w, http.StatusNoContent, nil)
+
+			return
+		}
+	}
+
+	respondWithJSON(w, http.StatusNotFound, nil)
+}
+
+func (app *App) completeTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	for i, task := range app.Todo.Tasks {
+		if task.Id == vars["id"] {
+			var status Status
+			status = DONE
+			app.Todo.Tasks[i].Status = status.String()
+			respondWithJSON(w, http.StatusNoContent, nil)
+
 			return
 		}
 	}
@@ -135,7 +170,6 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 
 func respondWithError(w http.ResponseWriter, errMessage map[string]string) {
 	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
 	respondWithJSON(w, http.StatusBadRequest, errMessage)
 }
 
@@ -144,6 +178,7 @@ func isValidInput(task Task) map[string]string {
 	err := validate.Struct(task)
 	if err != nil {
 		validationErrors := err.(validator.ValidationErrors)
+
 		return map[string]string{"error": validationErrors.Error()}
 	}
 
