@@ -24,19 +24,8 @@ type Todo struct {
 type Task struct {
 	Id          string `json:"id"`
 	Name        string `json:"name" validate:"required,max=100"`
-	Description string `json:"desc" validate:"max=1000"`
-	Status      string `json:"status"`
-}
-
-type Status int
-
-const (
-	TODO = iota
-	DONE
-)
-
-func (s Status) String() string {
-	return [...]string{"TODO", "DONE"}[s]
+	Description string `json:"desc,omitempty" validate:"max=1000"`
+	Status      bool   `json:"status"`
 }
 
 func main() {
@@ -75,9 +64,6 @@ func (app *App) createTask(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 	newTask.Id = shortuuid.New()
-	var status Status
-	status = TODO
-	newTask.Status = status.String()
 
 	if errMessage := isValidInput(newTask); errMessage != nil {
 		respondWithError(w, errMessage)
@@ -150,9 +136,7 @@ func (app *App) completeTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	for i, task := range app.Todo.Tasks {
 		if task.Id == vars["id"] {
-			var status Status
-			status = DONE
-			app.Todo.Tasks[i].Status = status.String()
+			app.Todo.Tasks[i].Status = true
 			respondWithJSON(w, http.StatusNoContent, nil)
 
 			return
