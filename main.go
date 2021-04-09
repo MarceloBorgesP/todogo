@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"sync"
 
+	"github.com/MarceloBorgesP/todogo/models"
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 	"github.com/lithammer/shortuuid/v3"
@@ -13,19 +13,7 @@ import (
 
 type App struct {
 	Router *mux.Router
-	Todo   Todo
-}
-
-type Todo struct {
-	mu    sync.Mutex
-	Tasks []Task
-}
-
-type Task struct {
-	Id          string `json:"id"`
-	Name        string `json:"name" validate:"required,max=100"`
-	Description string `json:"desc,omitempty" validate:"max=1000"`
-	Status      bool   `json:"status"`
+	Todo   models.Todo
 }
 
 func main() {
@@ -58,7 +46,7 @@ func (app *App) getTasks(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) createTask(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	newTask := Task{}
+	newTask := models.Task{}
 	err := decoder.Decode(&newTask)
 	if err != nil {
 		panic(err)
@@ -90,7 +78,7 @@ func (app *App) getTask(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) updateTask(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var updatedTask Task
+	var updatedTask models.Task
 	err := decoder.Decode(&updatedTask)
 	if err != nil {
 		panic(err)
@@ -157,7 +145,7 @@ func respondWithError(w http.ResponseWriter, errMessage map[string]string) {
 	respondWithJSON(w, http.StatusBadRequest, errMessage)
 }
 
-func isValidInput(task Task) map[string]string {
+func isValidInput(task models.Task) map[string]string {
 	validate := validator.New()
 	err := validate.Struct(task)
 	if err != nil {
