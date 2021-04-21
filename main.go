@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 
 	"github.com/MarceloBorgesP/todogo/models"
 	"github.com/go-playground/validator/v10"
@@ -22,16 +24,18 @@ type App struct {
 func main() {
 	a := App{}
 	a.Initialize(
-		// os.Getenv("POSTGRES_USER"),
-		// os.Getenv("POSTGRES_PASSWORD"),
-		// os.Getenv("POSTGRES_DB"))
-		"db", 5432, "postgres", "postgres", "postgres")
+		os.Getenv("POSTGRES_HOSTNAME"),
+		os.Getenv("POSTGRES_PORT"),
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_DB"))
 	a.Run(":8080")
 }
 
-func (a *App) Initialize(host string, port uint16, user, password, dbname string) {
+func (a *App) Initialize(host, port, user, password, dbname string) {
+	portNumber, _ := strconv.Atoi(port)
 	connectionString :=
-		fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+		fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, portNumber, user, password, dbname)
 
 	var err error
 	a.DB, err = sql.Open("postgres", connectionString)

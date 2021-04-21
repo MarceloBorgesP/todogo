@@ -2,16 +2,15 @@ version: '3'
 services:
   db:
     image: postgres
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      PG_USER: postgres
+    env_file:
+      - .env
     ports:
       - 5432:5432
   app:
     build: .
     command: ["go", "run", "main.go"]
+    env_file:
+      - .env
     volumes:
       - .:/go/src/app
     ports:
