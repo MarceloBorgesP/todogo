@@ -6,6 +6,7 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      PG_USER: postgres
     ports:
       - 5432:5432
   app:
@@ -14,7 +15,7 @@ services:
     volumes:
       - .:/go/src/app
     ports:
-      - "80:8080"
+      - "8080:8080"
     depends_on:
       - db
     links:
